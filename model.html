@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Virtual Fashion Studio | 3D Try-On</title>
+    
+    <!-- Font Awesome for Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.4/css/all.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Neue+Haas+Grotesk:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/loaders/GLTFLoader.js"></script>
+    <!-- OrbitControls for camera interaction -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- html2canvas for Snapshots -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
+    <style>
+        :root {
+            --primary-color: #1a1c20;
+            --secondary-color: #00ddeb;
+            --accent-color: #ff2e63;
+            --success-color: #2ecc71;
+            --background-color: #0f1115;
+            --sidebar-width: 340px;
+            --transition-speed: 0.4s;
+            --border-radius: 16px;
+            --box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+            --glass-effect: rgba(255, 255, 255, 0.1);
+            --neon-glow: 0 0 8px rgba(0, 221, 235, 0.5);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Neue Haas Grotesk', 'Poppins', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--primary-color) 0%, #2c3e50 100%);
+            color: #fff;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+            position: relative;
+        }
+
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--glass-effect);
+            backdrop-filter: blur(12px);
+            padding: 30px;
+            box-shadow: var(--box-shadow);
+            overflow-y: auto;
+            transition: transform var(--transition-speed) ease-in-out;
+            z-index: 100;
+        }
+
+        .sidebar::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .sidebar::-webkit-scrollbar-thumb {
+            background: var(--secondary-color);
+            border-radius: 3px;
+        }
+
+        .section-header {
+            font-size: 1.4em;
+            font-weight: 700;
+            color: #fff;
+            margin: 25px 0 15px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+        }
+
+        .section-header i {
+            color: var(--secondary-color);
+            text-shadow: var(--neon-glow);
+        }
+
+        .btn {
+            padding: 14px 24px;
+            border: none;
+            border-radius: var(--border-radius);
+            background: linear-gradient(135deg, var(--secondary-color), #2980b9);
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all var(--transition-speed) ease;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            box-shadow: var(--neon-glow);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(0, 221, 235, 0.4);
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: 0.5s;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .gender-switch {
+            display: flex;
+            gap: 12px;
+            margin: 25px 0;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 6px;
+            border-radius: var(--border-radius);
+        }
+
+        .gender-switch button {
+            flex: 1;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            background: transparent;
+            color: #fff;
+            font-weight: 600;
+            transition: all var(--transition-speed) ease;
+        }
+
+        .gender-switch button.active {
+            background: var(--secondary-color);
+            transform: scale(1.05);
+            box-shadow: var(--neon-glow);
+        }
+
+        .slider-container {
+            margin: 25px 0;
+            position: relative;
+        }
+
+        .slider-container label {
+            display: block;
+            margin-bottom: 12px;
+            color: #fff;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 24px;
+            height: 24px;
+            background: var(--secondary-color);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: var(--neon-glow);
+            transition: all var(--transition-speed);
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.3);
+            box-shadow: 0 0 12px var(--secondary-color);
+        }
+
+        .value {
+            position: absolute;
+            right: 0;
+            top: -2px;
+            color: var(--secondary-color);
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+
+        .body-type select {
+            width: 100%;
+            padding: 14px;
+            border-radius: var(--border-radius);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.05);
+            color: #fff;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all var(--transition-speed);
+        }
+
+        .body-type select:focus {
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 0 3px rgba(0, 221, 235, 0.2);
+        }
+
+        .clothing-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 20px;
+            margin-top: 25px;
+        }
+
+        .clothing-item {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: var(--border-radius);
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all var(--transition-speed) ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .clothing-item:hover {
+            transform: translateY(-6px);
+            background: rgba(255, 255, 255, 0.15);
+            box-shadow: var(--neon-glow);
+        }
+
+        .clothing-item .preview {
+            width: 100%;
+            height: 120px;
+            border-radius: 10px;
+            background-size: cover;
+            background-position: center;
+            transition: all var(--transition-speed);
+        }
+
+        .clothing-item:hover .preview {
+            transform: scale(1.1);
+        }
+
+        .clothing-item p {
+            margin-top: 12px;
+            color: #fff;
+            font-weight: 500;
+            text-transform: uppercase;
+            font-size: 0.9em;
+        }
+
+        .main-view {
+            flex: 1;
+            position: relative;
+            background: linear-gradient(135deg, var(--primary-color) 0%, #1e3a8a 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            background: transparent;
+        }
+
+        .controls {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 20px;
+            background: var(--glass-effect);
+            padding: 20px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            backdrop-filter: blur(12px);
+        }
+
+        .controls button {
+            padding: 14px 30px;
+            border: none;
+            border-radius: var(--border-radius);
+            background: var(--secondary-color);
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all var(--transition-speed) ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: var(--neon-glow);
+        }
+
+        .controls button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(0, 221, 235, 0.4);
+        }
+
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 17, 21, 0.98);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            flex-direction: column;
+            gap: 25px;
+        }
+
+        .loading-spinner {
+            width: 70px;
+            height: 70px;
+            border: 6px solid rgba(255, 255, 255, 0.1);
+            border-top: 6px solid var(--secondary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .loading-text {
+            color: #fff;
+            font-size: 1.4em;
+            font-weight: 600;
+            letter-spacing: 2.5px;
+            animation: pulse 1.5s infinite;
+            text-transform: uppercase;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.5; }
+            50% { opacity: 1; }
+            100% { opacity: 0.5; }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                max-height: 50vh;
+                padding: 20px;
+            }
+            
+            .main-view {
+                height: 50vh;
+                position: relative;
+            }
+
+            .controls {
+                bottom: 15px;
+                padding: 10px;
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+
+            .controls button {
+                padding: 10px 15px;
+                font-size: 0.9em;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .sidebar {
+                padding: 15px;
+            }
+
+            .section-header {
+                font-size: 1.2em;
+            }
+
+            .btn {
+                padding: 12px 18px;
+                font-size: 0.9em;
+            }
+        }
+
+        .tooltip {
+            position: absolute;
+            background: var(--glass-effect);
+            padding: 10px 15px;
+            border-radius: 6px;
+            font-size: 0.9em;
+            color: #fff;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity var(--transition-speed) ease;
+            z-index: 1000;
+            backdrop-filter: blur(8px);
+        }
+
+        .debug-info {
+            display: none;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 12px;
+            border-radius: var(--border-radius);
+            margin-top: 15px;
+            font-size: 0.9em;
+        }
+
+        .debug-info.active {
+            display: block;
+        }
+
+        .color-option {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: inline-block;
+            margin: 6px;
+            cursor: pointer;
+            border: 3px solid transparent;
+            transition: all var(--transition-speed) ease;
+        }
+
+        .color-option:hover {
+            border-color: #fff;
+            transform: scale(1.2);
+            box-shadow: var(--neon-glow);
+        }
+
+        .notification {
+            position: fixed;
+            top: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 25px;
+            border-radius: 10px;
+            color: #fff;
+            z-index: 1000;
+            max-width: 90%;
+            text-align: center;
+            box-shadow: var(--box-shadow);
+        }
+    </style>
+</head>
+<body>
+    <div class="loading-screen">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">INITIALIZING FASHION STUDIO</div>
+    </div>
+
+    <div class="container">
+        <div class="sidebar">
+            <div class="section-header">
+                <i class="fas fa-tshirt"></i>
+                <h2>Fashion Studio</h2>
+            </div>
+
+            <div class="gender-switch">
+                <button id="maleBtn" class="active">
+                    <i class="fas fa-male"></i> Male
+                </button>
+                <button id="femaleBtn">
+                    <i class="fas fa-female"></i> Female
+                </button>
+            </div>
+
+            <div class="section-header">
+                <i class="fas fa-sliders-h"></i>
+                <h3>Body Customization</h3>
+            </div>
+
+            <div class="slider-container">
+                <label for="height">Height</label>
+                <input type="range" id="height" min="150" max="190" value="170">
+                <span class="value">170cm</span>
+            </div>
+
+            <div class="slider-container">
+                <label for="weight">Weight</label>
+                <input type="range" id="weight" min="45" max="100" value="70">
+                <span class="value">70kg</span>
+                <div class="tooltip" id="weightTooltip"></div>
+            </div>
+
+            <div class="slider-container">
+                <label for="waist">Waist</label>
+                <input type="range" id="waist" min="60" max="100" value="80">
+                <span class="value">80cm</span>
+            </div>
+
+            <div class="body-type">
+                <label>Body Type</label>
+                <select id="bodyType">
+                    <option value="slim">Slim</option>
+                    <option value="athletic">Athletic</option>
+                    <option value="curvy">Curvy</option>
+                    <option value="plus">Plus Size</option>
+                </select>
+            </div>
+
+            <div class="section-header">
+                <i class="fas fa-bug"></i>
+                <h3>Debug</h3>
+            </div>
+            <button id="toggleDebug" class="btn">
+                <i class="fas fa-eye"></i> Toggle Debug
+            </button>
+            <div id="debugInfo" class="debug-info"></div>
+
+            <div class="section-header">
+                <i class="fas fa-shopping-bag"></i>
+                <h3>Wardrobe</h3>
+            </div>
+
+            <div class="clothing-categories">
+                <button class="category-btn active">Tops</button>
+            </div>
+
+            <div class="clothing-grid" id="clothingItems">
+                <!-- Dynamically populated -->
+            </div>
+
+            <div class="section-header">
+                <i class="fas fa-palette"></i>
+                <h3>Color Options</h3>
+            </div>
+
+            <div class="color-picker">
+                <!-- Dynamically populated -->
+            </div>
+
+            <div class="section-header">
+                <i class="fas fa-camera"></i>
+                <h3>Personalize Avatar</h3>
+            </div>
+
+            <div class="avatar-upload">
+                <input type="file" id="avatarUpload" accept="image/*">
+                <button id="uploadBtn" class="btn">
+                    <i class="fas fa-cloud-upload-alt"></i> Upload Photo
+                </button>
+            </div>
+        </div>
+
+        <div class="main-view">
+            <div id="canvas-container"></div>
+            <div class="controls">
+                <button id="rotateLeft" title="Rotate Left">
+                    <i class="fas fa-undo"></i>
+                </button>
+                <button id="zoomIn" title="Zoom In">
+                    <i class="fas fa-search-plus"></i>
+                </button>
+                <button id="zoomOut" title="Zoom Out">
+                    <i class="fas fa-search-minus"></i>
+                </button>
+                <button id="resetView" title="Reset View">
+                    <i class="fas fa-sync"></i>
+                </button>
+                <button id="rotateRight" title="Rotate Right">
+                    <i class="fas fa-redo"></i>
+                </button>
+                <button id="takeSnapshot" title="Take Snapshot">
+                    <i class="fas fa-camera"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class VirtualFittingRoom {
+            constructor() {
+                this.scene = null;
+                this.camera = null;
+                this.renderer = null;
+                this.controls = null;
+                this.avatar = null;
+                this.currentClothing = null;
+                this.gender = 'male';
+                this.debugEnabled = false;
+                this._transitionSpeed = 0.4;
+                this.initializeThreeJS();
+                this.initializeUI();
+                this.setupEventListeners();
+                this.loadModel();
+                this.hideLoadingScreen();
+                this.animate();
+            }
+
+            initializeThreeJS() {
+                const container = document.getElementById('canvas-container');
+                this.scene = new THREE.Scene();
+                this.camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+                this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+                this.renderer.setSize(container.clientWidth, container.clientHeight);
+                container.appendChild(this.renderer.domElement);
+
+                // Lighting
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+                this.scene.add(ambientLight);
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+                directionalLight.position.set(0, 1, 1);
+                this.scene.add(directionalLight);
+
+                // Camera position
+                this.camera.position.set(0, 1, 2);
+
+                // OrbitControls
+                this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+                this.controls.enablePan = false;
+                this.controls.minDistance = 1;
+                this.controls.maxDistance = 3;
+                this.controls.target.set(0, 1, 0);
+                this.controls.update();
+
+                // Handle resize
+                window.addEventListener('resize', () => {
+                    this.camera.aspect = container.clientWidth / container.clientHeight;
+                    this.camera.updateProjectionMatrix();
+                    this.renderer.setSize(container.clientWidth, container.clientHeight);
+                });
+            }
+
+            initializeUI() {
+                const colors = [
+                    '#ffffff', '#000000', '#ff2e63', '#00ddeb', '#ff8800'
+                ];
+
+                const colorPicker = document.querySelector('.color-picker');
+                colors.forEach(color => {
+                    const colorOption = document.createElement('div');
+                    colorOption.className = 'color-option';
+                    colorOption.style.backgroundColor = color;
+                    colorOption.addEventListener('click', () => this.changeClothingColor(color));
+                    colorPicker.appendChild(colorOption);
+                });
+
+                this.populateClothingGrid();
+            }
+
+            populateClothingGrid() {
+                const clothingItems = [
+                    { id: 'tshirt', name: 'Graphic Tee', category: 'Tops', preview: 'linear-gradient(135deg, #ffffff, #e0e0e0)' }
+                ];
+
+                const grid = document.getElementById('clothingItems');
+                grid.innerHTML = '';
+
+                clothingItems.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'clothing-item';
+                    div.setAttribute('data-category', item.category);
+                    div.innerHTML = `
+                        <div class="preview" style="background: ${item.preview};"></div>
+                        <p>${item.name}</p>
+                    `;
+                    div.addEventListener('click', () => this.loadClothing(item.id));
+                    grid.appendChild(div);
+                });
+            }
+
+            loadModel() {
+                if (this.avatar) {
+                    this.scene.remove(this.avatar);
+                }
+
+                const loader = new THREE.GLTFLoader();
+                const modelPath = this.gender === 'male' ? 'game_of_peace_male_pubg.glb' : 'realistic_human_3d_model_ai-generated.glb';
+                loader.load(
+                    modelPath,
+                    (gltf) => {
+                        this.avatar = gltf.scene;
+                        this.avatar.scale.set(1, 1, 1);
+                        this.avatar.position.set(0, 0, 0);
+                        this.scene.add(this.avatar);
+                        this.updateModelParameters();
+                        this.animateEntrance();
+                    },
+                    undefined,
+                    (error) => {
+                        console.error('Error loading model:', error);
+                        this.showNotification('Failed to load avatar model. Check file path or format.', 'error');
+                    }
+                );
+            }
+
+            loadClothing(clothingId) {
+                if (this.currentClothing) {
+                    this.scene.remove(this.currentClothing);
+                }
+
+                const loader = new THREE.GLTFLoader();
+                const clothingPaths = {
+                    tshirt: './models/tshirt.glb'
+                };
+
+                const clothingPath = clothingPaths[clothingId];
+                if (!clothingPath) {
+                    this.showNotification('Clothing item not found.', 'error');
+                    return;
+                }
+
+                loader.load(
+                    clothingPath,
+                    (gltf) => {
+                        this.currentClothing = gltf.scene;
+                        this.currentClothing.scale.set(1, 1, 1);
+                        this.currentClothing.position.set(0, 0, 0);
+                        this.scene.add(this.currentClothing);
+                        this.fitClothingToModel();
+                        this.animateClothing();
+                    },
+                    undefined,
+                    (error) => {
+                        console.error('Error loading clothing:', error);
+                        this.showNotification('Failed to load clothing. Check file path or format.', 'error');
+                    }
+                );
+            }
+
+            changeClothingColor(color) {
+                if (this.currentClothing) {
+                    this.currentClothing.traverse((child) => {
+                        if (child.isMesh && child.material) {
+                            child.material.color.set(color);
+                        }
+                    });
+                }
+            }
+
+            updateModelParameters() {
+                const heightSlider = document.getElementById('height');
+                const weightSlider = document.getElementById('weight');
+                const waistSlider = document.getElementById('waist');
+                const bodyTypeSelect = document.getElementById('bodyType');
+
+                if (!heightSlider || !weightSlider || !waistSlider || !bodyTypeSelect) {
+                    this.showNotification('UI elements missing.', 'error');
+                    return;
+                }
+
+                const height = parseFloat(heightSlider.value);
+                const weight = parseFloat(weightSlider.value);
+                const waist = parseFloat(waistSlider.value);
+                const bodyType = bodyTypeSelect.value;
+
+                const heightScale = height / 170;
+                const weightScale = (weight - 45) / (100 - 45) * 0.5 + 0.75;
+                const waistScale = (waist - 60) / (100 - 60) * 0.4 + 0.8;
+
+                let typeModifier = 1;
+                switch (bodyType) {
+                    case 'slim': typeModifier = 0.8; break;
+                    case 'athletic': typeModifier = 1.0; break;
+                    case 'curvy': typeModifier = 1.2; break;
+                    case 'plus': typeModifier = 1.4; break;
+                }
+
+                if (this.avatar) {
+                    this.avatar.scale.set(weightScale * typeModifier * waistScale, heightScale, weightScale * typeModifier * waistScale);
+                    this.avatar.position.y = (heightScale - 1) * 0.5;
+                }
+
+                if (this.debugEnabled) {
+                    document.getElementById('debugInfo').innerHTML = `
+                        Height: ${height}cm<br>
+                        Weight: ${weight}kg<br>
+                        Waist: ${waist}cm<br>
+                        Body Type: ${bodyType}<br>
+                        Scale: (${(weightScale * typeModifier * waistScale).toFixed(2)}, ${heightScale.toFixed(2)}, ${(weightScale * typeModifier * waistScale).toFixed(2)})
+                    `;
+                }
+
+                if (this.currentClothing) {
+                    this.fitClothingToModel();
+                }
+            }
+
+            fitClothingToModel() {
+                if (!this.currentClothing || !this.avatar) return;
+                this.currentClothing.scale.copy(this.avatar.scale);
+                this.currentClothing.position.set(0, 0, 0); // Adjust if needed
+            }
+
+            animateEntrance() {
+                if (this.avatar) {
+                    this.avatar.position.y = -1;
+                    let opacity = 0;
+                    const animate = () => {
+                        opacity += 0.05;
+                        this.avatar.position.y += 0.05;
+                        this.avatar.traverse((child) => {
+                            if (child.isMesh && child.material) {
+                                child.material.opacity = Math.min(opacity, 1);
+                                child.material.transparent = true;
+                            }
+                        });
+                        if (opacity < 1) requestAnimationFrame(animate);
+                    };
+                    animate();
+                }
+            }
+
+            animateClothing() {
+                if (this.currentClothing) {
+                    this.currentClothing.position.y = -1;
+                    let opacity = 0;
+                    const animate = () => {
+                        opacity += 0.05;
+                        this.currentClothing.position.y += 0.05;
+                        this.currentClothing.traverse((child) => {
+                            if (child.isMesh && child.material) {
+                                child.material.opacity = Math.min(opacity, 1);
+                                child.material.transparent = true;
+                            }
+                        });
+                        if (opacity < 1) requestAnimationFrame(animate);
+                    };
+                    animate();
+                }
+            }
+
+            animate() {
+                requestAnimationFrame(() => this.animate());
+                this.controls.update();
+                this.renderer.render(this.scene, this.camera);
+            }
+
+            takeSnapshot() {
+                const container = document.getElementById('canvas-container');
+                html2canvas(container, {
+                    backgroundColor: null,
+                    scale: window.devicePixelRatio * 2
+                }).then(canvas => {
+                    const dataUrl = canvas.toDataURL('image/png');
+                    const link = document.createElement('a');
+                    link.download = 'fashion-snapshot.png';
+                    link.href = dataUrl;
+                    link.click();
+                    this.showNotification('Snapshot saved!', 'success');
+                }).catch(error => {
+                    this.showNotification('Failed to take snapshot.', 'error');
+                    console.error('Snapshot error:', error);
+                });
+            }
+
+            setupEventListeners() {
+                document.getElementById('maleBtn').addEventListener('click', () => {
+                    document.getElementById('maleBtn').classList.add('active');
+                    document.getElementById('femaleBtn').classList.remove('active');
+                    this.gender = 'male';
+                    this.loadModel();
+                });
+
+                document.getElementById('femaleBtn').addEventListener('click', () => {
+                    document.getElementById('femaleBtn').classList.add('active');
+                    document.getElementById('maleBtn').classList.remove('active');
+                    this.gender = 'female';
+                    this.loadModel();
+                });
+
+                const updateParams = () => this.updateModelParameters();
+                const updateValue = (event) => {
+                    const span = event.target.parentElement.querySelector('.value');
+                    const unit = event.target.id === 'height' ? 'cm' : event.target.id === 'weight' ? 'kg' : 'cm';
+                    span.textContent = `${event.target.value}${unit}`;
+
+                    if (event.target.id === 'weight') {
+                        const weight = parseFloat(event.target.value);
+                        const tooltip = document.getElementById('weightTooltip');
+                        let tooltipText = '';
+                        if (weight <= 50) {
+                            tooltipText = 'Extra Thin';
+                        } else if (weight >= 90) {
+                            tooltipText = 'Plus Size';
+                        } else if (weight >= 70 && weight < 90) {
+                            tooltipText = 'Curvy';
+                        } else {
+                            tooltipText = 'Average';
+                        }
+                        tooltip.textContent = tooltipText;
+                        tooltip.style.opacity = '1';
+                        tooltip.style.transform = `translateX(${event.target.value / 100 * 100 - 50}px)`;
+                        setTimeout(() => {
+                            tooltip.style.opacity = '0';
+                        }, 1000);
+                    }
+                };
+
+                document.getElementById('height').addEventListener('input', (e) => {
+                    updateValue(e);
+                    updateParams();
+                });
+
+                document.getElementById('weight').addEventListener('input', (e) => {
+                    updateValue(e);
+                    updateParams();
+                });
+
+                document.getElementById('waist').addEventListener('input', (e) => {
+                    updateValue(e);
+                    updateParams();
+                });
+
+                document.getElementById('bodyType').addEventListener('change', updateParams);
+
+                document.getElementById('toggleDebug').addEventListener('click', () => {
+                    this.debugEnabled = !this.debugEnabled;
+                    document.getElementById('debugInfo').classList.toggle('active', this.debugEnabled);
+                    if (!this.debugEnabled) {
+                        document.getElementById('debugInfo').innerHTML = '';
+                    } else {
+                        this.updateModelParameters();
+                    }
+                });
+
+                document.getElementById('rotateLeft').addEventListener('click', () => {
+                    this.controls.target.y = 1;
+                    this.controls.object.position.x += 0.5;
+                    this.controls.update();
+                });
+
+                document.getElementById('rotateRight').addEventListener('click', () => {
+                    this.controls.target.y = 1;
+                    this.controls.object.position.x -= 0.5;
+                    this.controls.update();
+                });
+
+                document.getElementById('zoomIn').addEventListener('click', () => {
+                    this.controls.object.position.z = Math.max(this.controls.object.position.z - 0.2, 1);
+                    this.controls.update();
+                });
+
+                document.getElementById('zoomOut').addEventListener('click', () => {
+                    this.controls.object.position.z = Math.min(this.controls.object.position.z + 0.2, 3);
+                    this.controls.update();
+                });
+
+                document.getElementById('resetView').addEventListener('click', () => {
+                    this.controls.reset();
+                    this.camera.position.set(0, 1, 2);
+                    this.controls.target.set(0, 1, 0);
+                    this.controls.update();
+                });
+
+                document.getElementById('takeSnapshot').addEventListener('click', () => {
+                    this.takeSnapshot();
+                });
+
+                const categoryButtons = document.querySelectorAll('.category-btn');
+                categoryButtons.forEach(button => {
+                    button.addEventListener('click', () => {
+                        categoryButtons.forEach(btn => btn.classList.remove('active'));
+                        button.classList.add('active');
+                        this.filterClothingItems(button.textContent.trim());
+                    });
+                });
+
+                document.getElementById('uploadBtn').addEventListener('click', () => {
+                    const fileInput = document.getElementById('avatarUpload');
+                    if (fileInput.files.length > 0) {
+                        this.handleAvatarUpload(fileInput.files[0]);
+                    } else {
+                        this.showNotification('Please select a photo first', 'warning');
+                    }
+                });
+            }
+
+            filterClothingItems(category) {
+                const items = document.querySelectorAll('.clothing-item');
+                items.forEach(item => {
+                    const itemCategory = item.getAttribute('data-category');
+                    const isVisible = category === 'All' || itemCategory === category;
+                    item.style.opacity = isVisible ? '1' : '0.3';
+                    item.style.transform = isVisible ? 'translateY(0)' : 'translateY(5px)';
+                });
+            }
+
+            handleAvatarUpload(file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const texture = new THREE.TextureLoader().load(e.target.result);
+                    if (this.avatar) {
+                        this.avatar.traverse((child) => {
+                            if (child.isMesh && child.material) {
+                                child.material.map = texture;
+                                child.material.needsUpdate = true;
+                            }
+                        });
+                        this.showNotification('Avatar texture applied!', 'success');
+                    }
+                };
+                reader.onerror = () => {
+                    this.showNotification('Failed to upload photo.', 'error');
+                };
+                reader.readAsDataURL(file);
+            }
+
+            showNotification(message, type = 'info') {
+                const notification = document.createElement('div');
+                notification.className = `notification ${type}`;
+                notification.textContent = message;
+                notification.style.background = type === 'error' ? '#e74c3c' : type === 'warning' ? '#f1c40f' : type === 'success' ? '#2ecc71' : '#00ddeb';
+                document.body.appendChild(notification);
+
+                notification.style.opacity = '0';
+                setTimeout(() => {
+                    notification.style.transition = `opacity ${this.transitionSpeed}s`;
+                    notification.style.opacity = '1';
+                    setTimeout(() => {
+                        notification.style.opacity = '0';
+                        setTimeout(() => notification.remove(), this.transitionSpeed * 1000);
+                    }, 3000);
+                }, 50);
+            }
+
+            hideLoadingScreen() {
+                const loadingScreen = document.querySelector('.loading-screen');
+                setTimeout(() => {
+                    loadingScreen.style.opacity = '0';
+                    setTimeout(() => {
+                        loadingScreen.style.display = 'none';
+                    }, this.transitionSpeed * 1000);
+                }, 1000);
+            }
+
+            get transitionSpeed() {
+                return this._transitionSpeed;
+            }
+
+            set transitionSpeed(value) {
+                this._transitionSpeed = value;
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            try {
+                const app = new VirtualFittingRoom();
+
+                const sidebar = document.querySelector('.sidebar');
+                sidebar.style.transform = 'translateX(-340px)';
+                setTimeout(() => {
+                    sidebar.style.transition = `transform ${app.transitionSpeed}s ease-in-out`;
+                    sidebar.style.transform = 'translateX(0)';
+                }, 500);
+
+                const controls = document.querySelector('.controls');
+                controls.style.transform = 'translateY(120px)';
+                controls.style.opacity = '0';
+                setTimeout(() => {
+                    controls.style.transition = `transform ${app.transitionSpeed}s, opacity ${app.transitionSpeed}s`;
+                    controls.style.transform = 'translateY(0)';
+                    controls.style.opacity = '1';
+                }, 800);
+            } catch (error) {
+                console.error('Initialization error:', error);
+                const notification = document.createElement('div');
+                notification.className = 'notification error';
+                notification.textContent = 'Failed to initialize the studio. Please refresh.';
+                notification.style.background = '#e74c3c';
+                document.body.appendChild(notification);
+                notification.style.opacity = '0';
+                setTimeout(() => {
+                    notification.style.transition = 'opacity 0.4s';
+                    notification.style.opacity = '1';
+                    setTimeout(() => {
+                        notification.style.opacity = '0';
+                        setTimeout(() => notification.remove(), 400);
+                    }, 5000);
+                }, 50);
+            }
+        });
+    </script>
+</body>
+</html>
